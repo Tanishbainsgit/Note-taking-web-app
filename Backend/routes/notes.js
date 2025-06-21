@@ -1,18 +1,19 @@
 const express = require('express');
 const router = express.Router();
 const Note = require('../models/Note');
+const auth = require('../middleware/authMiddleware'); //  Import the auth middleware
 
-// POST: Create new note (handles userId, tags, archived)
-router.post('/', async (req, res, next) => {
+//  POST: Create new note
+router.post('/', auth, async (req, res, next) => {
   try {
-    const { userId, title, content, tags, archived } = req.body;
+    const { title, content, tags, archived } = req.body;
 
-    if (!userId || !title || !content) {
-      return res.status(400).json({ message: 'userId, title and content are required' });
+    if (!title || !content) {
+      return res.status(400).json({ message: 'Title and content are required' });
     }
 
     const newNote = new Note({
-      userId,
+      userId: req.user.userId, //  Use the userId from JWT token
       title,
       content,
       tags: tags || [],
@@ -26,47 +27,42 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-// GET: Retrieve all notes
-router.get('/', async (req, res, next) => {
+//  GET: Retrieve all notes for current user
+router.get('/', auth, async (req, res, next) => {
   try {
-    const notes = await Note.find();
+    const notes = await Note.find({ userId: req.user.userId }); //  Only user-specific notes
     res.json(notes);
   } catch (err) {
     next(err);
   }
 });
 
-// GET: Retrieve a note by ID
-router.get('/:id', async (req, res, next) => {
+//  GET: Retrieve a note by ID (ensure it belongs to user)
+router.get('/:id', auth, async (req, res, next) => {
   try {
-    const note = await Note.findById(req.params.id);
-    if (!note) {
-      return res.status(404).json({ message: 'Note not found' });
-    }
+    const note = await Note.findOne({ _id: req.params.id, userId: req.user.userId }); //  Restrict access
+    if (!note) return res.status(404).json({ message: 'Note not found' });
     res.json(note);
   } catch (err) {
     next(err);
   }
 });
 
-// PUT: Update a note
-router.put('/:id', async (req, res, next) => {
+//  PUT: Update a note
+router.put('/:id', auth, async (req, res, next) => {
   try {
     const { title, content, tags, archived } = req.body;
     if (!title || !content) {
       return res.status(400).json({ message: 'Title and Content are required' });
     }
 
-    const updatedNote = await Note.findByIdAndUpdate(
-      req.params.id,
+    const updatedNote = await Note.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.userId }, //  Ensure note belongs to user
       { title, content, tags, archived, updatedDate: new Date() },
       { new: true }
     );
 
-    if (!updatedNote) {
-      return res.status(404).json({ message: 'Note not found' });
-    }
-
+    if (!updatedNote) return res.status(404).json({ message: 'Note not found or unauthorized' });
     res.json(updatedNote);
   } catch (err) {
     next(err);
@@ -74,12 +70,10 @@ router.put('/:id', async (req, res, next) => {
 });
 
 // DELETE: Delete a note
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', auth, async (req, res, next) => {
   try {
-    const deletedNote = await Note.findByIdAndDelete(req.params.id);
-    if (!deletedNote) {
-      return res.status(404).json({ message: 'Note not found' });
-    }
+    const deletedNote = await Note.findOneAndDelete({ _id: req.params.id, userId: req.user.userId }); // User scope
+    if (!deletedNote) return res.status(404).json({ message: 'Note not found or unauthorized' });
 
     res.json({ message: 'Note deleted successfully' });
   } catch (err) {
@@ -87,16 +81,15 @@ router.delete('/:id', async (req, res, next) => {
   }
 });
 
-// GET: Search notes by title (Search Feature for indexing & optimization)
-router.get('/search/title', async (req, res, next) => {
+//  GET: Search notes by title for current user
+router.get('/search/title', auth, async (req, res, next) => {
   try {
     const { title } = req.query;
-    if (!title) {
-      return res.status(400).json({ message: 'Title parameter is required for search' });
-    }
+    if (!title) return res.status(400).json({ message: 'Title parameter is required for search' });
 
     const notes = await Note.find({
-      title: new RegExp(title, 'i')  // Case-insensitive search
+      userId: req.user.userId, // Restrict search to current user's notes
+      title: new RegExp(title, 'i')
     });
 
     res.json(notes);
