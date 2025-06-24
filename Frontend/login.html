@@ -11,27 +11,42 @@
     <form id="loginForm">
       <div class="mb-3">
         <label for="email" class="form-label">Email address</label>
-        <input type="email" class="form-control" id="email" required placeholder="Enter email">
+        <input type="email" class="form-control" id="email" placeholder="Enter email" required autofocus>
       </div>
       <div class="mb-3">
         <label for="password" class="form-label">Password</label>
-        <input type="password" class="form-control" id="password" required>
+        <input type="password" class="form-control" id="password" placeholder="Enter password" required>
       </div>
-      <button type="submit" class="btn btn-success">Login</button>
+      <button type="submit" class="btn btn-success" id="loginBtn">
+        Login
+      </button>
       <div id="loginToast" class="mt-3"></div>
     </form>
+
+    <!-- Register Link -->
+    <p class="mt-3">
+      Don't have an account? <a href="register.html">Register here</a>
+    </p>
   </div>
 
   <script>
     document.getElementById("loginForm").addEventListener("submit", async function (e) {
       e.preventDefault();
 
-      const email = document.getElementById("email").value.trim();
+      const email = document.getElementById("email").value.trim().toLowerCase(); // Normalize email
       const password = document.getElementById("password").value.trim();
       const toast = document.getElementById("loginToast");
+      const loginBtn = document.getElementById("loginBtn");
 
+      toast.innerHTML = "";
+      loginBtn.disabled = true;
+      loginBtn.innerText = "Logging in...";
+
+      // Client-side validation
       if (!email.includes("@") || password.length < 6) {
-        toast.innerHTML = `<div class="alert alert-danger">Invalid email or password too short.</div>`;
+        toast.innerHTML = `<div class="alert alert-danger">Please enter a valid email and a password with at least 6 characters.</div>`;
+        loginBtn.disabled = false;
+        loginBtn.innerText = "Login";
         return;
       }
 
@@ -43,15 +58,19 @@
         });
 
         const data = await res.json();
+
         if (res.ok) {
           localStorage.setItem("jwtToken", data.token);
           toast.innerHTML = `<div class="alert alert-success">Login successful! Redirecting...</div>`;
           setTimeout(() => window.location.href = "index.html", 2000);
         } else {
-          toast.innerHTML = `<div class="alert alert-danger">${data.message || "Login failed"}</div>`;
+          toast.innerHTML = `<div class="alert alert-danger">${data.message || "Login failed. Please check your credentials."}</div>`;
         }
       } catch (err) {
-        toast.innerHTML = `<div class="alert alert-danger">Error: ${err.message}</div>`;
+        toast.innerHTML = `<div class="alert alert-danger">Server error: ${err.message}</div>`;
+      } finally {
+        loginBtn.disabled = false;
+        loginBtn.innerText = "Login";
       }
     });
   </script>

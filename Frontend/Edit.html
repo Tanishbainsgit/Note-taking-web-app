@@ -2,118 +2,76 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Edit Note</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="style.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
-
-  <!-- Navbar for both mobile & desktop -->
-  <nav class="navbar navbar-light bg-light">
-    <div class="container-fluid d-flex justify-content-between align-items-center">
-
-      <!-- Hamburger Menu -->
-      <button class="btn btn-light d-lg-none">
-        <span class="navbar-toggler-icon"></span>
-      </button>
-
-      <!-- App Logo -->
-      <span class="navbar-brand mb-0 h1 d-none d-lg-block">App Logo</span>
-
-      <!-- Back Button -->
-      <a href="view.html" class="btn btn-light">
-        <span>&larr;</span>
-      </a>
-
+  <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <div class="container-fluid">
+      <a class="navbar-brand" href="index.html">MyNotes</a>
+      <div class="d-flex">
+        <span id="user-info" class="navbar-text text-white me-3"></span>
+        <button class="btn btn-outline-light" onclick="logout()">Logout</button>
+      </div>
     </div>
   </nav>
 
-  <!-- Edit Note Form - Mobile -->
-  <div class="container mt-5 d-lg-none">
-
-    <h4 class="mb-4">Edit Note</h4>
-
-    <form id="editFormMobile" novalidate>
+  <div class="container mt-5">
+    <h3>Edit Note</h3>
+    <form id="editNoteForm">
       <div class="mb-3">
         <label for="noteTitle" class="form-label">Title</label>
-        <input 
-          type="text" 
-          class="form-control" 
-          id="noteTitle" 
-          value="Sample Note Title" 
-          required 
-          minlength="3" 
-          maxlength="100"
-        >
+        <input type="text" class="form-control" id="noteTitle" required />
       </div>
-
       <div class="mb-3">
         <label for="noteContent" class="form-label">Content</label>
-        <textarea 
-          class="form-control" 
-          id="noteContent" 
-          rows="10" 
-          required 
-          minlength="5" 
-          maxlength="5000"
-        >Edit the Content here...</textarea>
+        <textarea class="form-control" id="noteContent" rows="5" required></textarea>
       </div>
-
-      <div class="d-flex justify-content-between">
-        <button type="submit" class="btn btn-primary">Save</button>
-        <a href="view.html" class="btn btn-secondary">Cancel</a>
-      </div>
+      <button type="submit" class="btn btn-success">Save Changes</button>
     </form>
-
+    <div id="toastContainer" class="toast-container position-fixed bottom-0 end-0 p-3"></div>
   </div>
 
-  <!-- Edit Note Form - Desktop -->
-  <div class="container mt-5 d-none d-lg-block" style="max-width: 700px;">
+  <script src="app.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      checkAuth();
+      loadUserInfo();
+      const id = getNoteIdFromURL();
 
-    <h4 class="mb-4">Edit Notes</h4>
+      fetch(`/api/notes/${id}`, {
+        method: "GET",
+        headers: getAuthHeaders()
+      })
+        .then(res => res.json())
+        .then(note => {
+          document.getElementById("noteTitle").value = note.title;
+          document.getElementById("noteContent").value = note.content;
+        })
+        .catch(err => showToast("Error loading note", "danger"));
 
-    <form id="editFormDesktop" novalidate>
-      <div class="mb-3">
-        <label for="noteTitleDesktop" class="form-label">Title</label>
-        <input 
-          type="text" 
-          class="form-control" 
-          id="noteTitleDesktop" 
-          value="Edit Title" 
-          required 
-          minlength="3" 
-          maxlength="100"
-        >
-      </div>
+      document.getElementById("editNoteForm").addEventListener("submit", e => {
+        e.preventDefault();
+        const updatedNote = {
+          title: document.getElementById("noteTitle").value.trim(),
+          content: document.getElementById("noteContent").value.trim()
+        };
 
-      <div class="mb-3">
-        <label for="noteContentDesktop" class="form-label">Content</label>
-        <textarea 
-          class="form-control" 
-          id="noteContentDesktop" 
-          rows="10" 
-          required 
-          minlength="5" 
-          maxlength="5000"
-        >Edit Write Content here...</textarea>
-      </div>
-
-      <div class="d-flex justify-content-between">
-        <button type="submit" class="btn btn-primary">Save</button>
-        <a href="view.html" class="btn btn-secondary">Cancel</a>
-      </div>
-    </form>
-
-  </div>
-
-  <!-- Toast Container for notifications -->
-  <div id="toastContainer" class="position-fixed top-0 end-0 p-3" style="z-index: 9999;"></div>
-
-  <!-- Bootstrap JS -->
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-  <!-- Link to your dynamic JS file -->
-  <script src="js/app.js"></script>
-
+        fetch(`/api/notes/${id}`, {
+          method: "PUT",
+          headers: getAuthHeaders(),
+          body: JSON.stringify(updatedNote)
+        })
+          .then(res => {
+            if (!res.ok) throw new Error();
+            showToast("Note updated successfully!", "success");
+            setTimeout(() => window.location.href = "view.html", 1500);
+          })
+          .catch(err => showToast("Error updating note", "danger"));
+      });
+    });
+  </script>
 </body>
 </html>
